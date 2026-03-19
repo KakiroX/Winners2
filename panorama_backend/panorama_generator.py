@@ -86,8 +86,21 @@ def _build_generation_prompt(scene_description: str, style_hints: str = "") -> s
     return "\n".join(parts)
 
 
-def _build_edit_prompt(room_state: str, modification: str) -> str:
+def _get_pixel_coords(pitch: float, yaw: float, width: int, height: int) -> tuple[int, int]:
+    """Convert equirectangular pitch/yaw to pixel x/y."""
+    # yaw is [-180, 180], pitch is [-90, 90]
+    x = int(((yaw + 180) / 360) * width)
+    y = int(((90 - pitch) / 180) * height)
+    return x, y
+
+
+def _build_edit_prompt(room_state: str, modification: str, pitch: Optional[float] = None, yaw: Optional[float] = None, width: int = 1024, height: int = 512) -> str:
     """Build an editing prompt from templates."""
+    location_context = ""
+    if pitch is not None and yaw is not None:
+        x, y = _get_pixel_coords(pitch, yaw, width, height)
+        location_context = f"STRICT FOCUS: This modification applies ONLY to the object located at pixel coordinates (x={x}, y={y}). "
+
     return "\n".join([
         SYSTEM_INSTRUCTIONS,
         "",
@@ -95,9 +108,10 @@ def _build_edit_prompt(room_state: str, modification: str) -> str:
         "",
         f"CURRENT ROOM STATE: {room_state}",
         "",
-        f"USER MODIFICATION REQUEST: {modification}",
+        f"USER MODIFICATION REQUEST: {location_context}{modification}",
         "",
         f"GENERATION RULES: {GENERATION_RULES}",
+        "5. Local Transformation: Change only the specified area/object. Do not alter the surrounding walls, lighting, or unrelated furniture.",
         "",
         NEGATIVE_PROMPT,
     ])
@@ -238,9 +252,6 @@ class PanoramaGenerator:
             contents=[prompt],
             config=types.GenerateContentConfig(
                 response_modalities=["TEXT", "IMAGE"],
-                image_config=types.ImageConfig(
-                    aspect_ratio="2:1",
-                ),
             ),
         )
 
@@ -255,6 +266,8 @@ class PanoramaGenerator:
         panorama: Image.Image,
         modification_request: str,
         room_state: str = "",
+        pitch: Optional[float] = None,
+        yaw: Optional[float] = None,
     ) -> PanoramaResult:
         """Edit an existing panorama with a text instruction.
 
@@ -266,6 +279,8 @@ class PanoramaGenerator:
             What to change, e.g. ``"Change the sofa color to brown"``.
         room_state : str, optional
             Description of the current room state for context.
+        pitch, yaw : float, optional
+            Coordinates of the object to modify.
 
         Returns
         -------
@@ -276,6 +291,10 @@ class PanoramaGenerator:
         prompt = _build_edit_prompt(
             room_state=room_state or "See the attached panorama image.",
             modification=modification_request,
+            pitch=pitch,
+            yaw=yaw,
+            width=panorama.width,
+            height=panorama.height,
         )
         logger.info("Editing panorama — modification: %s", modification_request)
 
@@ -284,9 +303,6 @@ class PanoramaGenerator:
             contents=[prompt, panorama],
             config=types.GenerateContentConfig(
                 response_modalities=["TEXT", "IMAGE"],
-                image_config=types.ImageConfig(
-                    aspect_ratio="2:1",
-                ),
             ),
         )
 
@@ -318,9 +334,6 @@ class PanoramaGenerator:
             config=types.GenerateContentConfig(
                 response_modalities=["TEXT", "IMAGE"],
                 system_instruction=system_prompt,
-                image_config=types.ImageConfig(
-                    aspect_ratio="2:1",
-                ),
             ),
         )
 
@@ -368,11 +381,11 @@ class PanoramaGenerator:
         image = None
         description_parts: list[str] = []
 
-        for part in response.parts:
+        for part in response.candidates[0].content.parts:
             if part.text is not None:
                 description_parts.append(part.text)
             elif part.inline_data is not None:
-                image = part.as_image()
+                image = Image.open(io.BytesIO(part.inline_data.data))
 
         if image is None:
             raise RuntimeError(

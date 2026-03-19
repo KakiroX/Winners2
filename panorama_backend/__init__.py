@@ -1,20 +1,13 @@
-"""
-Panorama Backend Module
-=======================
-
-AI-generated equirectangular panoramas and interactive 360° viewing.
-
-Components:
-    - ``PanoramaGenerator`` — Generate/edit panoramas using Gemini Nano Banana Pro
-    - ``PanoramaViewer`` — 360° viewer powered by Pannellum 2.5.7
-    - ``WalkthroughManager`` — Multi-room navigation with Street View-like controls
-    - ``ViewerConfig`` — Viewer display configuration
-    - ``Room``, ``Hotspot``, ``Walkthrough`` — Data models for walkthroughs
-"""
-
 from .panorama_generator import PanoramaGenerator, PanoramaResult, ChatSession
 from .panorama_viewer import PanoramaViewer, ViewerConfig
-from .walkthrough import WalkthroughManager, Room, Hotspot, Walkthrough
+from .walkthrough import Walkthrough, Room, Hotspot, WalkthroughManager
+from .storage import DesignStorage, Design, Version, HotspotDef
+from .studio import StudioManager
+
+try:
+    from .router import router as studio_router
+except ImportError:
+    studio_router = None
 
 __all__ = [
     "PanoramaGenerator",
@@ -22,9 +15,14 @@ __all__ = [
     "ChatSession",
     "PanoramaViewer",
     "ViewerConfig",
-    "WalkthroughManager",
+    "Walkthrough",
     "Room",
     "Hotspot",
-    "Walkthrough",
+    "WalkthroughManager",
+    "DesignStorage",
+    "Design",
+    "Version",
+    "HotspotDef",
+    "StudioManager",
+    "studio_router"
 ]
-__version__ = "1.0.0"
