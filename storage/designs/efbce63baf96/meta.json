@@ -1,0 +1,165 @@
+{
+  "id": "efbce63baf96",
+  "name": "My_design",
+  "created_at": 1773902902.1704478,
+  "versions": [
+    {
+      "id": "v1_35d52d",
+      "image_path": "designs\\efbce63baf96\\versions\\v1_35d52d.jpg",
+      "created_at": 1773902949.1086702,
+      "prompt_used": "A 50 square feet living room",
+      "hotspots": []
+    },
+    {
+      "id": "v2_0bfc38",
+      "image_path": "designs\\efbce63baf96\\versions\\v2_0bfc38.jpg",
+      "created_at": 1773903070.4935017,
+      "prompt_used": "Add a new Oak wood plant at this location.",
+      "hotspots": [
+        {
+          "id": "hs_w623hbxnc",
+          "pitch": 31.312029906559104,
+          "yaw": 22.22136538944162,
+          "type": "info",
+          "text": "plant",
+          "cssClass": "",
+          "properties": {
+            "type": "plant",
+            "material": "wood",
+            "color": "Oak"
+          }
+        }
+      ]
+    },
+    {
+      "id": "v3_9a0504",
+      "image_path": "designs\\efbce63baf96\\versions\\v3_9a0504.jpg",
+      "created_at": 1773903148.8499298,
+      "prompt_used": "change this sofa's color to red",
+      "hotspots": [
+        {
+          "id": "hs_w623hbxnc",
+          "pitch": 31.312029906559104,
+          "yaw": 22.22136538944162,
+          "type": "info",
+          "text": "plant",
+          "cssClass": "",
+          "properties": {
+            "type": "plant",
+            "material": "wood",
+            "color": "Oak"
+          }
+        },
+        {
+          "id": "hs_s7jofbj98",
+          "pitch": -25.5179803157997,
+          "yaw": -42.65464440818897,
+          "type": "info",
+          "text": "change this sofa's c",
+          "cssClass": "",
+          "properties": {
+            "prompt": "change this sofa's color to red"
+          }
+        }
+      ]
+    },
+    {
+      "id": "v4_de87e6",
+      "image_path": "designs\\efbce63baf96\\versions\\v4_de87e6.jpg",
+      "created_at": 1773903195.6923237,
+      "prompt_used": "change this plant to cactus",
+      "hotspots": [
+        {
+          "id": "hs_w623hbxnc",
+          "pitch": 31.312029906559104,
+          "yaw": 22.22136538944162,
+          "type": "info",
+          "text": "plant",
+          "cssClass": "",
+          "properties": {
+            "type": "plant",
+            "material": "wood",
+            "color": "Oak"
+          }
+        },
+        {
+          "id": "hs_s7jofbj98",
+          "pitch": -25.5179803157997,
+          "yaw": -42.65464440818897,
+          "type": "info",
+          "text": "change this sofa's c",
+          "cssClass": "",
+          "properties": {
+            "prompt": "change this sofa's color to red"
+          }
+        },
+        {
+          "id": "hs_t45eg5h66",
+          "pitch": -34.00985458009665,
+          "yaw": 13.415360622988814,
+          "type": "info",
+          "text": "change this plant to",
+          "cssClass": "",
+          "properties": {
+            "prompt": "change this plant to cactus"
+          }
+        }
+      ]
+    },
+    {
+      "id": "v5_5f90c4",
+      "image_path": "designs\\efbce63baf96\\versions\\v5_5f90c4.jpg",
+      "created_at": 1773903246.9660766,
+      "prompt_used": "close this door",
+      "hotspots": [
+        {
+          "id": "hs_w623hbxnc",
+          "pitch": 31.312029906559104,
+          "yaw": 22.22136538944162,
+          "type": "info",
+          "text": "plant",
+          "cssClass": "",
+          "properties": {
+            "type": "plant",
+            "material": "wood",
+            "color": "Oak"
+          }
+        },
+        {
+          "id": "hs_s7jofbj98",
+          "pitch": -25.5179803157997,
+          "yaw": -42.65464440818897,
+          "type": "info",
+          "text": "change this sofa's c",
+          "cssClass": "",
+          "properties": {
+            "prompt": "change this sofa's color to red"
+          }
+        },
+        {
+          "id": "hs_t45eg5h66",
+          "pitch": -34.00985458009665,
+          "yaw": 13.415360622988814,
+          "type": "info",
+          "text": "change this plant to",
+          "cssClass": "",
+          "properties": {
+            "prompt": "change this plant to cactus"
+          }
+        },
+        {
+          "id": "hs_kunxs281h",
+          "pitch": -6.77362065370205,
+          "yaw": 101.49614633044503,
+          "type": "info",
+          "text": "close this door",
+          "cssClass": "",
+          "properties": {
+            "prompt": "close this door"
+          }
+        }
+      ]
+    }
+  ],
+  "current_version_id": "v5_5f90c4"
+}
