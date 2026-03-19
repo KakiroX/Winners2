@@ -269,38 +269,39 @@ class PanoramaGenerator:
         pitch: Optional[float] = None,
         yaw: Optional[float] = None,
     ) -> PanoramaResult:
-        """Edit an existing panorama with a text instruction.
-
-        Parameters
-        ----------
-        panorama : PIL.Image.Image
-            The current panorama to edit.
-        modification_request : str
-            What to change, e.g. ``"Change the sofa color to brown"``.
-        room_state : str, optional
-            Description of the current room state for context.
-        pitch, yaw : float, optional
-            Coordinates of the object to modify.
-
-        Returns
-        -------
-        PanoramaResult
-        """
+        """Edit an existing panorama with a text instruction and area-specific context."""
         from google.genai import types
 
+        # Create a localized crop for better context if coordinates are provided
+        context_images = [panorama]
+        location_msg = "See the full 360 panorama."
+        
+        if pitch is not None and yaw is not None:
+            x, y = _get_pixel_coords(pitch, yaw, panorama.width, panorama.height)
+            # Define a context window (e.g., 512x512)
+            w, h = 512, 512
+            left = max(0, x - w // 2)
+            top = max(0, y - h // 2)
+            right = min(panorama.width, left + w)
+            bottom = min(panorama.height, top + h)
+            
+            crop = panorama.crop((left, top, right, bottom))
+            context_images.append(crop)
+            location_msg = f"See the full panorama AND the zoomed-in crop of the target area (centered at x={x}, y={y})."
+
         prompt = _build_edit_prompt(
-            room_state=room_state or "See the attached panorama image.",
+            room_state=room_state or location_msg,
             modification=modification_request,
             pitch=pitch,
             yaw=yaw,
             width=panorama.width,
             height=panorama.height,
         )
-        logger.info("Editing panorama — modification: %s", modification_request)
+        logger.info("Editing panorama area — modification: %s", modification_request)
 
         response = self._client.models.generate_content(
             model=self._model,
-            contents=[prompt, panorama],
+            contents=[prompt] + context_images,
             config=types.GenerateContentConfig(
                 response_modalities=["TEXT", "IMAGE"],
             ),
