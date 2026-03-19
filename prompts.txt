@@ -1,0 +1,38 @@
+Initial prompt
+Equirectangular 360-degree panorama of a modern interior. High-quality 3D render style.
+
+The Scene(example, to be edited on demand):
+A luxurious, sun-drenched Mediterranean-style living room combined with an open kitchen.
+- Large arched black-framed windows overlooking a lush green garden.
+- A large, curved beige sofa in the center.
+- Traditional red Persian rugs on light wooden floors.
+- Exposed wooden beams on a high white ceiling.
+- Warm, natural golden-hour sunlight pouring in.
+
+Technical Keywords (CRITICAL for 3D):
+360-degree, panoramic view, equirectangular projection, aspect ratio 2:1, ultra-wide angle, distorted perspective for 3D sphere, seamless horizon, full interior view, 8k resolution, photorealistic, sharp details, architectural photography style.
+
+Negative Prompt:
+Fisheye lens, black bars, cut-off edges, 2D flat image, people, blur, low resolution, broken geometry.
+
+
+Changes:
+### SYSTEM INSTRUCTIONS:
+You are an expert Architectural Visualization AI. Your task is to generate a high-fidelity 360-degree Equirectangular Panorama of an interior space.
+
+### BASE CONTEXT (Do not change these):
+- Format: 360-degree, equirectangular projection, 2:1 aspect ratio.
+- Style: Photorealistic, architectural photography, 8k resolution, Unreal Engine 5 render.
+- Lighting: Global illumination, natural sunlight from windows.
+
+### CURRENT ROOM STATE:
+[Здесь твой бэкенд вставляет описание текущей комнаты, например: "Modern Mediterranean living room with a round beige sofa and wooden beams."]
+
+### USER MODIFICATION REQUEST (CRITICAL):
+>>> {{Change sofa color to brown}} <<<
+
+### GENERATION RULES:
+1. Maintain the overall spatial geometry and architectural structure of the room.
+2. If the user asks to "Change the sofa", replace ONLY the sofa but keep the floor and walls the same.
+3. If the user asks for "Cyberpunk style", transform the lighting, materials, and furniture while keeping the 360-degree perspective.
+4. Ensure the horizontal line is perfectly straight for seamless 3D sphere mapping.
