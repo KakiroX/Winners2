@@ -9,7 +9,7 @@ from PIL import Image
 from .storage import DesignStorage, HotspotDef
 from .studio import StudioManager
 from .panorama_generator import PanoramaGenerator
-from bom_agent import BOMAgent
+from bom import BOMAgent, BOMManager
 
 router = APIRouter(prefix="/api", tags=["panorama_studio"])
 storage = DesignStorage()
@@ -37,14 +37,14 @@ async def background_bom_sourcing(design_id: str, version_id: str, image: Image.
     """Background task to source furniture in parallel."""
     try:
         agent = get_bom_agent()
-        bom = await agent.process_room(image)
+        bom_data = await agent.process_room(image)
         
         # Update storage with the new BOM
         design = storage.get_design(design_id)
         if design:
             for v in design.versions:
                 if v.id == version_id:
-                    v.bom = bom
+                    v.bom = bom_data
                     break
             storage._save_design(design)
     except Exception as e:
@@ -98,7 +98,8 @@ def delete_design(design_id: str):
 
 @router.get("/bom/total")
 def get_total_bom():
-    return storage.get_total_bom()
+    designs_list = storage.list_designs()
+    return BOMManager.aggregate_total_bom(designs_list, storage)
 
 
 @router.post("/designs/{design_id}/generate")
@@ -115,7 +116,6 @@ async def generate_design(design_id: str, request: GenerateRequest, background_t
         temp_path = f"temp_gen_{design_id}.jpg"
         result.save(temp_path)
         
-        # Save version immediately without BOM
         new_version = storage.save_version(
             design_id=design_id,
             image_path=temp_path,
@@ -124,7 +124,6 @@ async def generate_design(design_id: str, request: GenerateRequest, background_t
             bom=[]
         )
         
-        # Trigger agentic BOM sourcing in parallel background process
         background_tasks.add_task(background_bom_sourcing, design_id, new_version.id, result.image)
 
         if os.path.exists(temp_path):
@@ -147,7 +146,6 @@ async def edit_design(design_id: str, request: EditRequest, background_tasks: Ba
     if not base_version:
         raise HTTPException(status_code=404, detail="Base version not found")
 
-    # Reconstruct hotspots
     new_hotspots = []
     found = False
     new_hs_def = HotspotDef(
@@ -178,7 +176,6 @@ async def edit_design(design_id: str, request: EditRequest, background_tasks: Ba
         temp_path = f"temp_edit_{design_id}.jpg"
         result.save(temp_path)
         
-        # Save version immediately
         new_version = storage.save_version(
             design_id=design_id,
             image_path=temp_path,
@@ -187,7 +184,6 @@ async def edit_design(design_id: str, request: EditRequest, background_tasks: Ba
             bom=[]
         )
         
-        # Trigger background agentic sourcing
         background_tasks.add_task(background_bom_sourcing, design_id, new_version.id, result.image)
 
         if os.path.exists(temp_path):

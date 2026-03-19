@@ -127,21 +127,6 @@ class DesignStorage:
             shutil.rmtree(d_dir)
             logger.info("Deleted design: %s", design_id)
 
-    def get_total_bom(self) -> list[dict]:
-        """Aggregate BOM from the current version of all designs."""
-        total_bom = []
-        for design in self.list_designs():
-            if not design.current_version_id:
-                continue
-            version = self.get_version(design.id, design.current_version_id)
-            if version and version.bom:
-                for item in version.bom:
-                    # Tag item with design name for the project BOM
-                    item_copy = item.copy()
-                    item_copy["design_source"] = design.name
-                    total_bom.append(item_copy)
-        return total_bom
-
     def get_design(self, design_id: str) -> Optional[Design]:
         meta_path = self._get_meta_path(design_id)
         if not meta_path.exists():
