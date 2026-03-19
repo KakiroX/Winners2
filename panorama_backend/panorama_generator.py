@@ -257,6 +257,37 @@ class PanoramaGenerator:
 
         return self._parse_response(response, prompt)
 
+    def detect_and_source_furniture(self, panorama: Image.Image) -> list[dict]:
+        """Passive detection of furniture and internet sourcing simulation."""
+        from google.genai import types
+        import json
+
+        detection_prompt = (
+            "Analyze this 360 panorama and list all distinct furniture items. "
+            "For each item, provide: "
+            "1. A descriptive name (e.g., 'Modern Blue Velvet Sofa') "
+            "2. An estimated price in USD "
+            "3. A simulated shopping URL. "
+            "Respond ONLY with a JSON list of objects: "
+            "[{\"name\": \"...\", \"price\": \"...\", \"url\": \"...\"}]"
+        )
+
+        try:
+            response = self._client.models.generate_content(
+                model=self._model,
+                contents=[detection_prompt, panorama],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                ),
+            )
+            
+            # Extract JSON from response
+            text = response.candidates[0].content.parts[0].text
+            return json.loads(text)
+        except Exception as e:
+            logger.warning("Furniture detection failed: %s", e)
+            return []
+
     # ------------------------------------------------------------------
     # Image editing (single-shot)
     # ------------------------------------------------------------------

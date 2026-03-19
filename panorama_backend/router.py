@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Optional
+import os
+from PIL import Image
 
 from .storage import DesignStorage, HotspotDef
 from .studio import StudioManager
@@ -35,11 +37,13 @@ class EditRequest(BaseModel):
     hotspot: HotspotInput
     prompt: str
 
+class GenerateRequest(BaseModel):
+    prompt: str
+
 
 @router.get("/studio", response_class=HTMLResponse)
 def get_studio_ui():
     """Returns the standalone interactive editor HTML."""
-    # Assuming pannellum is served at /static/pannellum in the host app
     return studio.generate_studio_html(pannellum_base_url="/static/pannellum")
 
 
@@ -63,15 +67,19 @@ def get_design(design_id: str):
         raise HTTPException(status_code=404, detail="Design not found")
     return design.to_dict()
 
+@router.delete("/designs/{design_id}")
+def delete_design(design_id: str):
+    storage.delete_design(design_id)
+    return {"status": "deleted"}
 
-class GenerateRequest(BaseModel):
-    prompt: str
+@router.get("/bom/total")
+def get_total_bom():
+    return storage.get_total_bom()
+
 
 @router.post("/designs/{design_id}/generate")
 def generate_design(design_id: str, request: GenerateRequest):
-    """
-    Generates the initial panorama for a design.
-    """
+    """Generates the initial panorama for a design with passive BOM sourcing."""
     design = storage.get_design(design_id)
     if not design:
         raise HTTPException(status_code=404, detail="Design not found")
@@ -83,30 +91,29 @@ def generate_design(design_id: str, request: GenerateRequest):
         temp_path = "temp_gen.jpg"
         result.save(temp_path)
         
+        # Passive furniture detection
+        bom = generator.detect_and_source_furniture(result.image)
+
         new_version = storage.save_version(
             design_id=design_id,
             image_path=temp_path,
             prompt_used=request.prompt,
-            hotspots=[]
+            hotspots=[],
+            bom=bom
         )
         
-        import os
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
         return new_version.to_dict()
-
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/designs/{design_id}/edit")
 def edit_design(design_id: str, request: EditRequest):
-    """
-    Edits the current panorama using the AI model based on the requested prompt,
-    adds the hotspot to the new version, and saves the result to storage.
-    """
+    """Edits the panorama and updates the BOM passively."""
     design = storage.get_design(design_id)
     if not design:
         raise HTTPException(status_code=404, detail="Design not found")
@@ -115,8 +122,7 @@ def edit_design(design_id: str, request: EditRequest):
     if not base_version:
         raise HTTPException(status_code=404, detail="Base version not found")
 
-    # Reconstruct hotspots for the new version
-    # If editing an existing hotspot, update it. If new, append it.
+    # Reconstruct hotspots
     new_hotspots = []
     found = False
     new_hs_def = HotspotDef(
@@ -126,23 +132,14 @@ def edit_design(design_id: str, request: EditRequest):
         text=request.hotspot.text,
         properties=request.hotspot.properties
     )
-
     for hs in base_version.hotspots:
         if hs.id == request.hotspot.id:
-            new_hotspots.append(new_hs_def)
-            found = True
+            new_hotspots.append(new_hs_def); found = True
         else:
             new_hotspots.append(hs)
-    
-    if not found:
-        new_hotspots.append(new_hs_def)
+    if not found: new_hotspots.append(new_hs_def)
 
-    # Prepare AI Edit
-    from PIL import Image
     try:
-        # Resolve the image path (assuming storage directory is served relative to the app)
-        # Note: In a real app, you might want a proper static file server for these.
-        # Here we'll just read it from the local path.
         full_image_path = storage.base_dir.parent / base_version.image_path
         with Image.open(full_image_path) as img:
             generator = get_generator()
@@ -153,26 +150,24 @@ def edit_design(design_id: str, request: EditRequest):
                 yaw=request.hotspot.yaw
             )
 
-        # Save the result as a new version
-        # Save temporary file first
         temp_path = "temp_edit.jpg"
         result.save(temp_path)
         
+        # Passive furniture detection on the new image
+        bom = generator.detect_and_source_furniture(result.image)
+
         new_version = storage.save_version(
             design_id=design_id,
             image_path=temp_path,
             prompt_used=request.prompt,
-            hotspots=new_hotspots
+            hotspots=new_hotspots,
+            bom=bom
         )
         
-        # Cleanup
-        import os
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
         return new_version.to_dict()
-
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

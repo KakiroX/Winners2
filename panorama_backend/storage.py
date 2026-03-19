@@ -40,6 +40,7 @@ class Version:
     created_at: float
     prompt_used: str = ""
     hotspots: list[HotspotDef] = field(default_factory=list)
+    bom: list[dict] = field(default_factory=list)
 
     def to_dict(self):
         return {
@@ -48,6 +49,7 @@ class Version:
             "created_at": self.created_at,
             "prompt_used": self.prompt_used,
             "hotspots": [h.to_dict() for h in self.hotspots],
+            "bom": self.bom,
         }
 
     @classmethod
@@ -118,6 +120,28 @@ class DesignStorage:
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(design.to_dict(), f, indent=2)
 
+    def delete_design(self, design_id: str):
+        """Remove a design and all its files."""
+        d_dir = self._get_design_dir(design_id)
+        if d_dir.exists():
+            shutil.rmtree(d_dir)
+            logger.info("Deleted design: %s", design_id)
+
+    def get_total_bom(self) -> list[dict]:
+        """Aggregate BOM from the current version of all designs."""
+        total_bom = []
+        for design in self.list_designs():
+            if not design.current_version_id:
+                continue
+            version = self.get_version(design.id, design.current_version_id)
+            if version and version.bom:
+                for item in version.bom:
+                    # Tag item with design name for the project BOM
+                    item_copy = item.copy()
+                    item_copy["design_source"] = design.name
+                    total_bom.append(item_copy)
+        return total_bom
+
     def get_design(self, design_id: str) -> Optional[Design]:
         meta_path = self._get_meta_path(design_id)
         if not meta_path.exists():
@@ -130,7 +154,8 @@ class DesignStorage:
         design_id: str, 
         image_path: str | Path, 
         prompt_used: str = "",
-        hotspots: list[HotspotDef] = None
+        hotspots: list[HotspotDef] = None,
+        bom: list[dict] = None
     ) -> Version:
         import time
         design = self.get_design(design_id)
@@ -152,6 +177,7 @@ class DesignStorage:
             created_at=time.time(),
             prompt_used=prompt_used,
             hotspots=hotspots or [],
+            bom=bom or [],
         )
 
         design.versions.append(version)
