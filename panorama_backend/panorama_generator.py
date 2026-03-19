@@ -257,60 +257,6 @@ class PanoramaGenerator:
 
         return self._parse_response(response, prompt)
 
-    def detect_and_source_furniture(self, panorama: Image.Image) -> list[dict]:
-        """Passive detection of furniture and real-world internet sourcing using Google Search tool."""
-        from google.genai import types
-        import json
-
-        # Step 1: Detect items in the image
-        detection_prompt = (
-            "Analyze this room panorama and list all furniture and decor items. "
-            "For each item, give a very specific product description (color, material, style). "
-            "Respond ONLY with a JSON list of strings: [\"item 1 description\", \"item 2 description\", ...]"
-        )
-
-        try:
-            # We use the base model for detection
-            detect_res = self._client.models.generate_content(
-                model=self._model,
-                contents=[detection_prompt, panorama],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                ),
-            )
-            item_descriptions = json.loads(detect_res.candidates[0].content.parts[0].text)
-            
-            sourced_items = []
-            
-            # Step 2: Search for each item using Google Search Grounding
-            # Note: We use 'gemini-2.0-flash' as it's highly optimized for search tools
-            for desc in item_descriptions[:5]:  # Limit to top 5 items for speed
-                search_prompt = (
-                    f"Find a real product for sale online matching this description: {desc}. "
-                    "Provide: 1. Product Name, 2. Current Price, 3. Real Purchase URL. "
-                    "Respond ONLY with a JSON object: {\"name\": \"...\", \"price\": \"...\", \"url\": \"...\"}"
-                )
-                
-                try:
-                    search_res = self._client.models.generate_content(
-                        model='gemini-2.0-flash',
-                        contents=search_prompt,
-                        config=types.GenerateContentConfig(
-                            tools=[types.Tool(google_search=types.GoogleSearch())],
-                            response_mime_type="application/json",
-                        ),
-                    )
-                    item_data = json.loads(search_res.candidates[0].content.parts[0].text)
-                    sourced_items.append(item_data)
-                except Exception as e:
-                    logger.warning("Search failed for item '%s': %s", desc, e)
-
-            return sourced_items
-            
-        except Exception as e:
-            logger.warning("Furniture sourcing workflow failed: %s", e)
-            return []
-
     # ------------------------------------------------------------------
     # Image editing (single-shot)
     # ------------------------------------------------------------------

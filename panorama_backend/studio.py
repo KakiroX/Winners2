@@ -372,7 +372,14 @@ html_template = """<!DOCTYPE html>
             document.getElementById('bom-title').innerText = title;
             const content = document.getElementById('bom-content');
             if (items.length === 0) {
-                content.innerHTML = "<p style='padding:20px'>No furniture items detected in this version yet.</p>";
+                content.innerHTML = `
+                    <div style="padding:40px; text-align:center;">
+                        <div class="spinner" style="margin: 0 auto 15px;"></div>
+                        <p>Our background agents are currently sourcing real furniture for this room...</p>
+                        <p style="font-size:12px; opacity:0.6; margin-top:10px;">Please try again in a few seconds.</p>
+                        <button onclick="closeBOM()" class="secondary" style="width:auto; margin-top:20px;">Close</button>
+                    </div>
+                `;
             } else {
                 let html = `<table class="bom-table">
                     <tr><th>Item</th><th>Estimate</th>${items[0].design_source ? '<th>Room</th>' : ''}<th>Link</th></tr>`;

@@ -3,23 +3,53 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import os
+import asyncio
 from PIL import Image
 
 from .storage import DesignStorage, HotspotDef
 from .studio import StudioManager
 from .panorama_generator import PanoramaGenerator
+from bom_agent import BOMAgent
 
 router = APIRouter(prefix="/api", tags=["panorama_studio"])
 storage = DesignStorage()
 studio = StudioManager()
 
-# We lazily initialize the generator so we don't crash on import if API keys are missing
+# Lazily initialized agents
 _generator = None
+_bom_agent = None
+
 def get_generator():
     global _generator
     if _generator is None:
         _generator = PanoramaGenerator()
     return _generator
+
+def get_bom_agent():
+    global _bom_agent
+    if _bom_agent is None:
+        gen = get_generator()
+        _bom_agent = BOMAgent(client=gen._client)
+    return _bom_agent
+
+
+async def background_bom_sourcing(design_id: str, version_id: str, image: Image.Image):
+    """Background task to source furniture in parallel."""
+    try:
+        agent = get_bom_agent()
+        bom = await agent.process_room(image)
+        
+        # Update storage with the new BOM
+        design = storage.get_design(design_id)
+        if design:
+            for v in design.versions:
+                if v.id == version_id:
+                    v.bom = bom
+                    break
+            storage._save_design(design)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("Background BOM sourcing failed: %s", e)
 
 
 class DesignCreate(BaseModel):
@@ -43,22 +73,16 @@ class GenerateRequest(BaseModel):
 
 @router.get("/studio", response_class=HTMLResponse)
 def get_studio_ui():
-    """Returns the standalone interactive editor HTML."""
     return studio.generate_studio_html(pannellum_base_url="/static/pannellum")
-
 
 @router.get("/designs")
 def list_designs():
-    """Returns all designs (S3-like storage buckets)."""
     return [d.to_dict() for d in storage.list_designs()]
-
 
 @router.post("/designs")
 def create_design(data: DesignCreate):
-    """Creates a new design bucket."""
     design = storage.create_design(data.name)
     return design.to_dict()
-
 
 @router.get("/designs/{design_id}")
 def get_design(design_id: str):
@@ -78,8 +102,8 @@ def get_total_bom():
 
 
 @router.post("/designs/{design_id}/generate")
-def generate_design(design_id: str, request: GenerateRequest):
-    """Generates the initial panorama for a design with passive BOM sourcing."""
+async def generate_design(design_id: str, request: GenerateRequest, background_tasks: BackgroundTasks):
+    """Generates the initial panorama and triggers parallel BOM sourcing in background."""
     design = storage.get_design(design_id)
     if not design:
         raise HTTPException(status_code=404, detail="Design not found")
@@ -88,20 +112,21 @@ def generate_design(design_id: str, request: GenerateRequest):
         generator = get_generator()
         result = generator.generate(scene_description=request.prompt)
 
-        temp_path = "temp_gen.jpg"
+        temp_path = f"temp_gen_{design_id}.jpg"
         result.save(temp_path)
         
-        # Passive furniture detection
-        bom = generator.detect_and_source_furniture(result.image)
-
+        # Save version immediately without BOM
         new_version = storage.save_version(
             design_id=design_id,
             image_path=temp_path,
             prompt_used=request.prompt,
             hotspots=[],
-            bom=bom
+            bom=[]
         )
         
+        # Trigger agentic BOM sourcing in parallel background process
+        background_tasks.add_task(background_bom_sourcing, design_id, new_version.id, result.image)
+
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
@@ -112,8 +137,8 @@ def generate_design(design_id: str, request: GenerateRequest):
 
 
 @router.post("/designs/{design_id}/edit")
-def edit_design(design_id: str, request: EditRequest):
-    """Edits the panorama and updates the BOM passively."""
+async def edit_design(design_id: str, request: EditRequest, background_tasks: BackgroundTasks):
+    """Edits the panorama and triggers parallel BOM sourcing in background."""
     design = storage.get_design(design_id)
     if not design:
         raise HTTPException(status_code=404, detail="Design not found")
@@ -150,20 +175,21 @@ def edit_design(design_id: str, request: EditRequest):
                 yaw=request.hotspot.yaw
             )
 
-        temp_path = "temp_edit.jpg"
+        temp_path = f"temp_edit_{design_id}.jpg"
         result.save(temp_path)
         
-        # Passive furniture detection on the new image
-        bom = generator.detect_and_source_furniture(result.image)
-
+        # Save version immediately
         new_version = storage.save_version(
             design_id=design_id,
             image_path=temp_path,
             prompt_used=request.prompt,
             hotspots=new_hotspots,
-            bom=bom
+            bom=[]
         )
         
+        # Trigger background agentic sourcing
+        background_tasks.add_task(background_bom_sourcing, design_id, new_version.id, result.image)
+
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
