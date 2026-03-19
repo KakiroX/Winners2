@@ -53,7 +53,7 @@ html_template = """<!DOCTYPE html>
         .design-item { padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 5px; position: relative; }
         .design-item:hover { background: #3d3d3d; }
         .design-item.active { background: var(--accent); color: white; }
-        .delete-btn { color: #888; cursor: pointer; padding: 5px; font-size: 11px; text-transform: uppercase; font-weight: bold; }
+        .delete-btn { color: #ccc; cursor: pointer; padding: 5px; font-size: 11px; text-transform: uppercase; font-weight: bold; }
         .delete-btn:hover { color: #ff6b6b; }
         
         .version-item { padding: 8px; cursor: pointer; border-radius: 4px; margin-bottom: 3px; font-size: 13px; opacity: 0.8; }
@@ -167,6 +167,11 @@ html_template = """<!DOCTYPE html>
                 const res = await fetch(`${API_BASE}/designs`);
                 designs = await res.json();
                 renderDesignList();
+                
+                // If we just launched and have designs, but none selected, select the first
+                if (!currentDesignId && designs.length > 0) {
+                    selectDesignById(designs[0].id);
+                }
             } catch (e) { console.error(e); }
         }
 
@@ -176,9 +181,13 @@ html_template = """<!DOCTYPE html>
             designs.forEach(d => {
                 const div = document.createElement('div');
                 div.className = `design-item ${d.id === currentDesignId ? 'active' : ''}`;
+                
+                // Clicking the item selects it
+                div.onclick = () => selectDesignById(d.id);
+                
                 div.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <strong onclick="selectDesignById('${d.id}')">${d.name}</strong>
+                        <strong>${d.name}</strong>
                         <span class="delete-btn" onclick="deleteDesign('${d.id}', event)">Delete</span>
                     </div>
                     <small style="opacity:0.7">${d.versions.length} versions</small>
@@ -204,7 +213,7 @@ html_template = """<!DOCTYPE html>
                         bomBtn.style.padding = "5px";
                         bomBtn.style.fontSize = "11px";
                         bomBtn.style.marginTop = "10px";
-                        bomBtn.onclick = () => showRoomBOM();
+                        bomBtn.onclick = (e) => { e.stopPropagation(); showRoomBOM(); };
                         vList.appendChild(bomBtn);
                     }
                 }
@@ -231,27 +240,31 @@ html_template = """<!DOCTYPE html>
         async function deleteDesign(id, e) {
             e.stopPropagation();
             if (!confirm("Delete this design?")) return;
-            await fetch(`${API_BASE}/designs/${id}`, { method: 'DELETE' });
-            if (currentDesignId === id) {
-                currentDesignId = null;
-                if (viewer) viewer.destroy();
-                viewer = null;
-            }
-            await loadDesigns();
+            try {
+                await fetch(`${API_BASE}/designs/${id}`, { method: 'DELETE' });
+                if (currentDesignId === id) {
+                    currentDesignId = null;
+                    if (viewer) viewer.destroy();
+                    viewer = null;
+                }
+                await loadDesigns();
+            } catch(err) { console.error(err); }
         }
 
         function selectDesignById(id) {
             const d = designs.find(x => x.id === id);
-            if (d) selectDesign(d);
+            if (d) {
+                currentDesignId = d.id;
+                selectDesign(d);
+                renderDesignList();
+            }
         }
 
         function selectDesign(design) {
-            currentDesignId = design.id;
             if (design.versions && design.versions.length > 0) {
                 loadVersion(design.id, design.versions[design.versions.length - 1]);
             } else {
                 currentVersionId = null;
-                renderDesignList();
                 if (viewer) viewer.destroy();
                 viewer = null;
                 document.getElementById('initial-prompt-box').style.display = 'block';
@@ -279,9 +292,9 @@ html_template = """<!DOCTYPE html>
         function loadVersion(designId, version) {
             currentDesignId = designId;
             currentVersionId = version.id;
-            renderDesignList();
             document.getElementById('initial-prompt-box').style.display = 'none';
             initViewer('/' + version.image_path, version.hotspots || []);
+            renderDesignList();
         }
 
         function initViewer(imageUrl, hotspots) {

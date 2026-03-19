@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 class BOMAgent:
     """Agentic orchestrator for parallel furniture detection and sourcing."""
     
-    def __init__(self, client: Client, model: str = "gemini-3-pro-image-preview"):
+    def __init__(self, client: Client, model: str = "gemini-2.0-flash"):
         self.client = client
         self.model = model
-        self._executor = ThreadPoolExecutor(max_workers=5)
+        self._executor = ThreadPoolExecutor(max_workers=10)
 
     async def process_room(self, panorama: Image.Image) -> list[dict]:
         """Orchestrate detection and parallel search sourcing."""
@@ -25,8 +25,8 @@ class BOMAgent:
                 return []
 
             # 2. Source each item in parallel (Search Grounding Tasks)
-            # Limit to top 5 items for efficiency
-            tasks = [self._source_item_task(desc) for desc in items[:5]]
+            # Limit to top 8 items for better coverage, but stay fast
+            tasks = [self._source_item_task(desc) for desc in items[:8]]
             results = await asyncio.gather(*tasks, return_exceptions=True)
             
             sourced = []
