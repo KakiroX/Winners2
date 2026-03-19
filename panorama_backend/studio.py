@@ -53,8 +53,8 @@ html_template = """<!DOCTYPE html>
         .design-item { padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 5px; position: relative; }
         .design-item:hover { background: #3d3d3d; }
         .design-item.active { background: var(--accent); color: white; }
-        .delete-btn { color: #888; cursor: pointer; padding: 5px; font-size: 12px; }
-        .delete-btn:hover { color: var(--danger); }
+        .delete-btn { color: #888; cursor: pointer; padding: 5px; font-size: 11px; text-transform: uppercase; font-weight: bold; }
+        .delete-btn:hover { color: #ff6b6b; }
         
         .version-item { padding: 8px; cursor: pointer; border-radius: 4px; margin-bottom: 3px; font-size: 13px; opacity: 0.8; }
         .version-item:hover { background: #444; opacity: 1; }
@@ -65,10 +65,9 @@ html_template = """<!DOCTYPE html>
         }
         button:hover { background: #357abd; }
         button.secondary { background: #555; }
-        button.danger { background: var(--danger); }
         
         input, textarea {
-            width: 100%; padding: 10px; margin-top: 10px; margin-bottom: 15px; background: #1a1a1a; border: 1px solid var(--border); color: white; border-radius: 4px; font-size: 14px;
+            width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 10px; background: #1a1a1a; border: 1px solid var(--border); color: white; border-radius: 4px; font-size: 14px;
         }
         
         .furniture-hotspot {
@@ -83,7 +82,6 @@ html_template = """<!DOCTYPE html>
         .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 10px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* BOM Modal */
         #bom-modal {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 600px; max-height: 80vh; background: var(--panel-bg); border: 1px solid var(--border);
@@ -95,24 +93,35 @@ html_template = """<!DOCTYPE html>
         .bom-table th, .bom-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
         .bom-table th { background: #252525; }
         .bom-link { color: var(--accent); text-decoration: none; font-size: 12px; }
-        .bom-link:hover { text-decoration: underline; }
+        
+        #initial-prompt-box {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            background: var(--panel-bg); padding: 25px; border-radius: 8px; z-index: 5; 
+            width: 400px; border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div id="left-panel">
-        <div class="header">
-            <span>Designs History</span>
-        </div>
+        <div class="header">Designs History</div>
         <div class="content" id="design-list"></div>
         <div style="padding: 15px; border-top: 1px solid var(--border);">
             <button onclick="showTotalBOM()" style="background: #27ae60; margin-bottom: 15px;">Project Bill of Materials (Total)</button>
-            <input type="text" id="new-design-name" placeholder="Room Name">
-            <button onclick="createDesign()">New Design</button>
+            <input type="text" id="new-design-name" placeholder="Design Name">
+            <button onclick="createDesign()">Create New Design</button>
         </div>
     </div>
     
     <div id="center-panel">
         <div id="panorama"></div>
+        <div id="initial-prompt-box">
+            <h3 style="margin-bottom:15px;">Create your room</h3>
+            <p style="font-size:14px; opacity:0.8; margin-bottom:10px;">Describe the 360° environment:</p>
+            <textarea id="initial-prompt" rows="4" placeholder="e.g. A futuristic office with panoramic city views..."></textarea>
+            <button onclick="generateInitial()">Generate Panorama</button>
+        </div>
         <div id="loading">
             <div class="spinner"></div>
             <div id="loading-text">Processing...</div>
@@ -137,9 +146,7 @@ html_template = """<!DOCTYPE html>
             <span id="bom-title">Bill of Materials</span>
             <span onclick="closeBOM()" style="cursor:pointer">&times; Close</span>
         </div>
-        <div class="content" id="bom-content">
-            <!-- BOM Table -->
-        </div>
+        <div class="content" id="bom-content"></div>
     </div>
 
     <script src="PANNELLUM_BASE_URL/libpannellum.js"></script>
@@ -149,7 +156,6 @@ html_template = """<!DOCTYPE html>
         let currentDesignId = null;
         let currentVersionId = null;
         let designs = [];
-        let currentBOM = [];
         let selectionMarker = null;
 
         const API_BASE = window.location.origin + '/api';
@@ -175,7 +181,7 @@ html_template = """<!DOCTYPE html>
                         <strong onclick="selectDesignById('${d.id}')">${d.name}</strong>
                         <span class="delete-btn" onclick="deleteDesign('${d.id}', event)">Delete</span>
                     </div>
-                    <small>${d.versions.length} versions</small>
+                    <small style="opacity:0.7">${d.versions.length} versions</small>
                 `;
                 list.appendChild(div);
                 
@@ -186,7 +192,7 @@ html_template = """<!DOCTYPE html>
                     d.versions.slice().reverse().forEach(v => {
                         const vDiv = document.createElement('div');
                         vDiv.className = `version-item ${v.id === currentVersionId ? 'active' : ''}`;
-                        vDiv.innerHTML = `Version ${v.id.split('_')[0]}`;
+                        vDiv.innerText = `Version ${v.id.split('_')[0]}`;
                         vDiv.onclick = (e) => { e.stopPropagation(); loadVersion(d.id, v); };
                         vList.appendChild(vDiv);
                     });
@@ -196,7 +202,8 @@ html_template = """<!DOCTYPE html>
                         const bomBtn = document.createElement('button');
                         bomBtn.innerText = "View Room BOM";
                         bomBtn.style.padding = "5px";
-                        bomBtn.style.fontSize = "12px";
+                        bomBtn.style.fontSize = "11px";
+                        bomBtn.style.marginTop = "10px";
                         bomBtn.onclick = () => showRoomBOM();
                         vList.appendChild(bomBtn);
                     }
@@ -204,11 +211,32 @@ html_template = """<!DOCTYPE html>
             });
         }
 
+        async function createDesign() {
+            const input = document.getElementById('new-design-name');
+            const name = input.value.trim();
+            if (!name) return alert("Please enter a name");
+            try {
+                const res = await fetch(`${API_BASE}/designs`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name})
+                });
+                const d = await res.json();
+                input.value = '';
+                await loadDesigns();
+                selectDesignById(d.id);
+            } catch (e) { console.error(e); }
+        }
+
         async function deleteDesign(id, e) {
             e.stopPropagation();
             if (!confirm("Delete this design?")) return;
             await fetch(`${API_BASE}/designs/${id}`, { method: 'DELETE' });
-            if (currentDesignId === id) currentDesignId = null;
+            if (currentDesignId === id) {
+                currentDesignId = null;
+                if (viewer) viewer.destroy();
+                viewer = null;
+            }
             await loadDesigns();
         }
 
@@ -219,31 +247,15 @@ html_template = """<!DOCTYPE html>
 
         function selectDesign(design) {
             currentDesignId = design.id;
-            if (design.versions.length > 0) {
+            if (design.versions && design.versions.length > 0) {
                 loadVersion(design.id, design.versions[design.versions.length - 1]);
             } else {
                 currentVersionId = null;
                 renderDesignList();
                 if (viewer) viewer.destroy();
                 viewer = null;
-                showInitialPrompt();
+                document.getElementById('initial-prompt-box').style.display = 'block';
             }
-        }
-
-        function showInitialPrompt() {
-            const center = document.getElementById('center-panel');
-            let box = document.getElementById('initial-prompt-box');
-            if (!box) {
-                box = document.createElement('div');
-                box.id = 'initial-prompt-box';
-                box.style = "position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--panel-bg); padding:25px; border-radius:8px; z-index:5; width:400px; border:1px solid var(--border);";
-                box.innerHTML = `
-                    <h3 style="margin-bottom:10px;">Create your room</h3>
-                    <textarea id="initial-prompt" rows="4" placeholder="e.g. A modern living room with large windows..."></textarea>
-                    <button onclick="generateInitial()">Generate Panorama</button>
-                `;
-                center.appendChild(box);
-            } else { box.style.display = 'block'; }
         }
 
         async function generateInitial() {
@@ -251,7 +263,7 @@ html_template = """<!DOCTYPE html>
             if (!prompt) return;
             document.getElementById('initial-prompt-box').style.display = 'none';
             document.getElementById('loading').style.display = 'flex';
-            document.getElementById('loading-text').innerText = "Generating & Sourcing Furniture...";
+            document.getElementById('loading-text').innerText = "Generating Initial Scene...";
             try {
                 await fetch(`${API_BASE}/designs/${currentDesignId}/generate`, {
                     method: 'POST',
@@ -259,8 +271,7 @@ html_template = """<!DOCTYPE html>
                     body: JSON.stringify({prompt})
                 });
                 await loadDesigns();
-                const d = designs.find(x => x.id === currentDesignId);
-                if (d) selectDesign(d);
+                selectDesignById(currentDesignId);
             } catch (e) { alert('Failed to generate.'); }
             finally { document.getElementById('loading').style.display = 'none'; }
         }
@@ -268,10 +279,8 @@ html_template = """<!DOCTYPE html>
         function loadVersion(designId, version) {
             currentDesignId = designId;
             currentVersionId = version.id;
-            currentBOM = version.bom || [];
             renderDesignList();
-            if (document.getElementById('initial-prompt-box')) 
-                document.getElementById('initial-prompt-box').style.display = 'none';
+            document.getElementById('initial-prompt-box').style.display = 'none';
             initViewer('/' + version.image_path, version.hotspots || []);
         }
 
@@ -334,7 +343,7 @@ html_template = """<!DOCTYPE html>
             };
             closeRightPanel();
             document.getElementById('loading').style.display = 'flex';
-            document.getElementById('loading-text').innerText = "Updating Room & BOM...";
+            document.getElementById('loading-text').innerText = "Applying Surgical Edit...";
             try {
                 await fetch(`${API_BASE}/designs/${currentDesignId}/edit`, {
                     method: 'POST',
@@ -342,14 +351,15 @@ html_template = """<!DOCTYPE html>
                     body: JSON.stringify(payload)
                 });
                 await loadDesigns();
-                const d = designs.find(x => x.id === currentDesignId);
-                if (d) selectDesign(d);
+                selectDesignById(currentDesignId);
             } catch (e) { alert('Edit failed'); }
             finally { document.getElementById('loading').style.display = 'none'; }
         }
 
         function showRoomBOM() {
-            renderBOM(currentBOM, `Room BOM - ${designs.find(x=>x.id===currentDesignId).name}`);
+            const d = designs.find(x=>x.id===currentDesignId);
+            const v = d.versions.find(x=>x.id===currentVersionId);
+            renderBOM(v.bom || [], `Room BOM - ${d.name}`);
         }
 
         async function showTotalBOM() {
@@ -362,7 +372,7 @@ html_template = """<!DOCTYPE html>
             document.getElementById('bom-title').innerText = title;
             const content = document.getElementById('bom-content');
             if (items.length === 0) {
-                content.innerHTML = "<p>No furniture items detected yet.</p>";
+                content.innerHTML = "<p style='padding:20px'>No furniture items detected in this version yet.</p>";
             } else {
                 let html = `<table class="bom-table">
                     <tr><th>Item</th><th>Estimate</th>${items[0].design_source ? '<th>Room</th>' : ''}<th>Link</th></tr>`;
@@ -381,14 +391,12 @@ html_template = """<!DOCTYPE html>
         }
 
         function closeBOM() { document.getElementById('bom-modal').classList.remove('open'); }
-
         window.onload = init;
     </script>
 </body>
 </html>"""
 
 class StudioManager:
-    """Generates the interactive design studio UI."""
     def __init__(self, pannellum_dir: Optional[str | Path] = None):
         self._pannellum_dir = Path(pannellum_dir) if pannellum_dir else PANNELLUM_DIR
     def generate_studio_html(self, pannellum_base_url: str = "/static/pannellum") -> str:
