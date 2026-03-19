@@ -31,11 +31,22 @@ html_template = """<!DOCTYPE html>
         }
         #left-panel { width: 250px; background: var(--panel-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
         #center-panel { flex: 1; position: relative; }
-        #right-panel { width: 320px; background: var(--panel-bg); border-left: 1px solid var(--border); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s ease; position: absolute; right: 0; top: 0; bottom: 0; z-index: 10; }
-        #right-panel.open { transform: translateX(0); }
+        
+        #right-panel { 
+            width: 320px; 
+            background: var(--panel-bg); 
+            border: 1px solid var(--border); 
+            display: none; 
+            flex-direction: column; 
+            position: absolute; 
+            z-index: 100; 
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        #right-panel.open { display: flex; }
         
         #panorama { width: 100%; height: 100%; }
-        .header { padding: 15px; border-bottom: 1px solid var(--border); font-weight: bold; background: #252525; }
+        .header { padding: 15px; border-bottom: 1px solid var(--border); font-weight: bold; background: #252525; border-radius: 8px 8px 0 0; }
         .content { padding: 15px; overflow-y: auto; flex: 1; }
         
         .design-item, .version-item { padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 5px; }
@@ -88,8 +99,8 @@ html_template = """<!DOCTYPE html>
             <input type="hidden" id="edit-yaw">
             <input type="hidden" id="edit-hotspot-id">
             
-            <p style="font-size: 14px; opacity: 0.8;">What would you like to change or add at this location?</p>
-            <textarea id="edit-prompt" rows="6" placeholder="e.g. Change this sofa to a red leather one..."></textarea>
+            <p style="font-size: 14px; opacity: 0.8;">What would you like to change or add here?</p>
+            <textarea id="edit-prompt" rows="5" placeholder="e.g. Change this sofa to a red leather one..."></textarea>
             
             <button onclick="applyEdit()">Apply Change</button>
             <button onclick="closeRightPanel()" style="background: #555;">Cancel</button>
@@ -224,7 +235,7 @@ html_template = """<!DOCTYPE html>
             const hsConfig = hotspots.map(h => ({
                 id: h.id, pitch: h.pitch, yaw: h.yaw,
                 cssClass: 'furniture-hotspot',
-                clickHandlerFunc: (e, a) => openRightPanel(a.pitch, a.yaw, a.id, a.properties.prompt)
+                clickHandlerFunc: (e, a) => openRightPanel(a.pitch, a.yaw, e.clientX, e.clientY, a.id, a.properties.prompt)
             }));
 
             viewer = pannellum.viewer('panorama', {
@@ -245,15 +256,30 @@ html_template = """<!DOCTYPE html>
                 cssClass: 'furniture-hotspot',
                 attributes: { style: 'background:rgba(255,255,255,0.3); border-color:#fff;' }
             });
-            openRightPanel(coords[0], coords[1]);
+            openRightPanel(coords[0], coords[1], event.clientX, event.clientY);
         }
 
-        function openRightPanel(pitch, yaw, id = '', prompt = '') {
+        function openRightPanel(pitch, yaw, x, y, id = '', prompt = '') {
+            const panel = document.getElementById('right-panel');
+            
+            // Position the panel near the click
+            const offset = 20;
+            let left = x + offset;
+            let top = y + offset;
+            
+            // Keep on screen
+            if (left + 320 > window.innerWidth) left = x - 320 - offset;
+            if (top + 280 > window.innerHeight) top = y - 280 - offset;
+
+            panel.style.left = left + 'px';
+            panel.style.top = top + 'px';
+
             document.getElementById('edit-pitch').value = pitch;
             document.getElementById('edit-yaw').value = yaw;
             document.getElementById('edit-hotspot-id').value = id;
             document.getElementById('edit-prompt').value = prompt;
-            document.getElementById('right-panel').classList.add('open');
+            panel.classList.add('open');
+            setTimeout(() => document.getElementById('edit-prompt').focus(), 100);
         }
 
         function closeRightPanel() {
