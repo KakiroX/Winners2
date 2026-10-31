@@ -438,7 +438,7 @@ export function compileGraph(g: Graph, ctx: ResolveCtx): FigureSpec {
   }
   if (o.legend === 'none') ax.legend.show = false;
   else if (o.legend !== 'auto') ax.legend.show = true;
-  else if (g.chart === 'xy' || g.chart === 'survival' || g.chart.startsWith('grouped') || g.chart === 'stackedBar' || g.chart === 'pie' || g.chart === 'donut' || (g.chart === 'histogram' && idx.length > 1)) ax.legend.show = idx.length > 1 || g.chart === 'pie' || g.chart === 'donut' || t.kind === 'parts';
+  else if (g.chart === 'xy' || g.chart === 'survival' || g.chart.startsWith('grouped') || g.chart === 'stackedBar' || g.chart === 'pie' || g.chart === 'donut' || (g.chart === 'histogram' && idx.length > 1)) ax.legend.show = (t.kind === 'multi' && g.chart === 'xy' ? idx.length > 2 : idx.length > 1) || g.chart === 'pie' || g.chart === 'donut' || t.kind === 'parts';
   addAnnotations(ax, g.annotations, fig);
   return fig;
 }

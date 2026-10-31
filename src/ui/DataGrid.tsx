@@ -13,8 +13,9 @@ interface Pos {
   c: number;
 }
 
-function fmt(v: Cell | undefined): string {
+function fmt(v: Cell | undefined, round = false): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return '';
+  if (round && !Number.isInteger(v)) return String(Number(v.toPrecision(6)));
   return String(v);
 }
 
@@ -65,9 +66,9 @@ export function DataGrid({ table, readOnly }: { table: DataTable; readOnly?: boo
     const cd = cols[c];
     if (!cd) return '';
     if (cd.kind === 'rowTitle') return table.rowTitles[r] ?? '';
-    if (cd.kind === 'x') return fmt(table.x[r]);
-    return fmt(table.datasets[cd.ds]?.cols[cd.sub]?.[r]);
-  }, [cols, table]);
+    if (cd.kind === 'x') return fmt(table.x[r], readOnly);
+    return fmt(table.datasets[cd.ds]?.cols[cd.sub]?.[r], readOnly);
+  }, [cols, table, readOnly]);
 
   /** Apply a block of text values starting at (r0, c0); extends data sets as needed. */
   const writeBlock = useCallback((r0: number, c0: number, block: string[][]) => {
