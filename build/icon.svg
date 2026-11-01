@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b6cf6"/>
+      <stop offset="0.55" stop-color="#6a4cf0"/>
+      <stop offset="1" stop-color="#c2549a"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#shine)"/>
+  <!-- axes -->
+  <path d="M250 250 V770 H790" fill="none" stroke="#ffffff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+  <!-- bars -->
+  <rect x="320" y="560" width="92" height="210" rx="14" fill="#ffffff" opacity="0.55"/>
+  <rect x="460" y="470" width="92" height="300" rx="14" fill="#ffffff" opacity="0.7"/>
+  <rect x="600" y="400" width="92" height="370" rx="14" fill="#ffffff" opacity="0.85"/>
+  <!-- error bars -->
+  <path d="M366 520 V600 M346 520 H386 M506 420 V520 M486 420 H526 M646 345 V455 M626 345 H666" stroke="#ffffff" stroke-width="16" stroke-linecap="round"/>
+  <!-- fitted curve -->
+  <path d="M290 690 C 420 680, 470 560, 560 430 S 700 270, 790 262" fill="none" stroke="#ffd166" stroke-width="30" stroke-linecap="round"/>
+  <circle cx="790" cy="262" r="30" fill="#ffd166"/>
+</svg>
